@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>fare-watch</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --line: #2a78d6;
+    --low: #0ca30c;
+    --typical: #898781;
+    --high: #d03b3b;
+    --ref: #52514e;
+    --marker: #c3c2b7;
+    --deadline: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7;
+      --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+      --line: #3987e5; --ref: #c3c2b7; --marker: #52514e;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --line: #3987e5; --ref: #c3c2b7; --marker: #52514e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 24px 16px 48px;
+  }
+  main { max-width: 1100px; margin: 0 auto; }
+  header h1 { font-size: 20px; margin: 0 0 2px; font-weight: 650; }
+  header p { margin: 0; color: var(--ink-2); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px; margin: 20px 0; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .tile .label { color: var(--ink-2); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .tile .value { font-size: clamp(20px, 5vw, 26px); font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .tile .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .level { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+  .dot.low { background: var(--low); } .dot.typical { background: var(--typical); }
+  .dot.high { background: var(--high); } .dot.none { background: transparent; border: 2px solid var(--line); }
+  .panel { min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-2); font-size: 12px; margin-bottom: 10px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch-line { width: 18px; border-top: 2px dashed var(--ref); display: inline-block; }
+  .swatch-marker { width: 0; height: 12px; border-left: 2px dotted var(--muted); display: inline-block; }
+  .chart-wrap { position: relative; height: 380px; }
+  .empty { color: var(--ink-2); padding: 48px 0; text-align: center; }
+  details { margin-top: 16px; }
+  summary { cursor: pointer; color: var(--ink-2); }
+  .table-wrap { overflow-x: auto; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+  td.num { text-align: right; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>{{ route }}</h1>
+    <p>{{ passengers }} pasajero(s) · {{ cabin }} · {{ currency }} · horario {{ tz }}</p>
+  </header>
+
+  <section class="tiles">
+    <div class="tile">
+      <div class="label">Precio actual</div>
+      <div class="value">{{ latest.price | money(currency) if latest else "—" }}</div>
+      <div class="sub">
+        {% if latest %}
+          <span class="level"><i class="dot {{ latest.current_price or 'none' }}"></i>
+            Google: {{ latest.current_price or "sin dato" }}</span>
+        {% else %}Aún sin datos{% endif %}
+      </div>
+    </div>
+    <div class="tile">
+      <div class="label">Mínimo histórico</div>
+      <div class="value">{{ min_price | money(currency) if min_price is not none else "—" }}</div>
+    </div>
+    <div class="tile">
+      <div class="label">Máximo histórico</div>
+      <div class="value">{{ max_price | money(currency) if max_price is not none else "—" }}</div>
+    </div>
+    <div class="tile">
+      <div class="label">Días al deadline</div>
+      <div class="value">{{ days_left if days_left is not none else "—" }}</div>
+      <div class="sub">{{ deadline.isoformat() if deadline else "Sin deadline configurado" }}</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="legend" aria-hidden="true">
+      <span><i class="dot low"></i>Google: low</span>
+      <span><i class="dot typical"></i>typical</span>
+      <span><i class="dot high"></i>high</span>
+      <span><i class="dot none"></i>sin dato</span>
+      <span><i class="swatch-line"></i>piso / techo</span>
+      <span><i class="swatch-marker"></i>recordatorio / deadline</span>
+    </div>
+    {% if snapshots %}
+      <div class="chart-wrap"><canvas id="chart" role="img" aria-label="Evolución del precio en el tiempo"></canvas></div>
+    {% else %}
+      <div class="empty">Todavía no hay snapshots. El primero llegará en el próximo horario de SCRAPE_TIMES.</div>
+    {% endif %}
+
+    {% if snapshots %}
+    <details>
+      <summary>Ver tabla ({{ snapshots | length }} snapshots)</summary>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha ({{ tz }})</th><th>Precio</th><th>Google</th><th>Aerolínea</th><th>Escalas</th></tr></thead>
+          <tbody>
+          {% for s in snapshots %}
+            <tr>
+              <td>{{ s.scraped_at | localtime }}</td>
+              <td class="num">{{ s.price | money(s.currency) }}</td>
+              <td><span class="level"><i class="dot {{ s.current_price or 'none' }}"></i>{{ s.current_price or "—" }}</span></td>
+              <td>{{ s.airline or "—" }}</td>
+              <td class="num">{{ s.stops if s.stops is not none else "—" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+    {% endif %}
+  </section>
+  <footer>fare-watch · datos de Google Flights vía fast-flights</footer>
+</main>
+
+{% if snapshots %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
+        integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"
+        integrity="sha384-cVMg8E3QFwTvGCDuK+ET4PD341jF3W8nO1auiXfuZNQkzbUUiBGLsIQUE+b1mxws" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"
+        integrity="sha384-3N9GHhCtN3CQef6tNfqgZlv7sQLYIkcChN+uaTZ7xVdzKYp/SjBNPxa92+hM7EAY" crossorigin="anonymous"></script>
+<script>
+(() => {
+  const DATA = {{ chart | tojson }};
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const fmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+  const money = (v) => `${fmt.format(v)} ${DATA.currency}`;
+  let chart;
+
+  function build() {
+    const c = {
+      line: css('--line'), surface: css('--surface'), ink2: css('--ink-2'), muted: css('--muted'),
+      grid: css('--grid'), axis: css('--axis'), ref: css('--ref'), marker: css('--marker'),
+      deadline: css('--deadline'),
+      level: { low: css('--low'), typical: css('--typical'), high: css('--high') },
+    };
+    const pointColor = (ctx) => c.level[ctx.raw?.level] || c.surface;
+    const pointBorder = (ctx) => (c.level[ctx.raw?.level] ? c.surface : c.line);
+
+    const annotations = {};
+    const refLine = (key, value, label) => {
+      if (value === null) return;
+      annotations[key] = {
+        type: 'line', yMin: value, yMax: value, borderColor: c.ref, borderWidth: 1.5, borderDash: [6, 4],
+        label: { display: true, content: `${label} ${money(value)}`, position: 'start',
+                 backgroundColor: c.surface, color: c.ink2, font: { size: 11 }, padding: 3 },
+      };
+    };
+    refLine('floor', DATA.floor, 'Piso');
+    refLine('ceiling', DATA.ceiling, 'Techo');
+    DATA.markers.forEach((m, i) => {
+      const isDeadline = m.kind === 'deadline';
+      annotations[`m${i}`] = {
+        type: 'line', xMin: `${m.date}T00:00:00`, xMax: `${m.date}T00:00:00`,
+        borderColor: isDeadline ? c.deadline : c.muted, borderWidth: isDeadline ? 2 : 1.5,
+        borderDash: isDeadline ? [] : [2, 3],
+        // Narrow screens: only the deadline keeps its label, reminders would collide.
+        label: { display: isDeadline || innerWidth >= 640, content: `${m.label} ${m.date}`, position: 'end', rotation: 0,
+                 backgroundColor: c.surface, color: isDeadline ? c.deadline : c.ink2,
+                 font: { size: 11 }, padding: 3 },
+      };
+    });
+
+    // Make sure reference lines / markers are inside the visible range.
+    const ys = DATA.points.map((p) => p.y).concat([DATA.floor, DATA.ceiling].filter((v) => v !== null));
+    const pad = Math.max((Math.max(...ys) - Math.min(...ys)) * 0.08, 1);
+    const xs = DATA.points.map((p) => p.x).concat(DATA.markers.map((m) => `${m.date}T00:00:00`))
+      .map((x) => new Date(x).getTime());
+    const xLo = Math.min(...xs), xHi = Math.max(...xs);
+    const xPad = Math.max((xHi - xLo) * 0.02, 6 * 3600 * 1000);
+
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    Chart.defaults.color = c.muted;
+    chart?.destroy();
+    chart = new Chart(document.getElementById('chart'), {
+      type: 'line',
+      data: { datasets: [{
+        label: 'Precio', data: DATA.points, parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+        borderColor: c.line, borderWidth: 2, tension: 0, stepped: false,
+        pointRadius: 5, pointHoverRadius: 7, pointHitRadius: 12, pointBorderWidth: 2,
+        pointBackgroundColor: pointColor, pointBorderColor: pointBorder,
+        pointHoverBackgroundColor: pointColor, pointHoverBorderColor: pointBorder,
+      }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        scales: {
+          x: { type: 'time', min: xLo - xPad, max: xHi + xPad,
+               time: { tooltipFormat: 'yyyy-MM-dd HH:mm' },
+               grid: { display: false }, border: { color: c.axis }, ticks: { maxRotation: 0, autoSkipPadding: 16 } },
+          y: { suggestedMin: Math.min(...ys) - pad, suggestedMax: Math.max(...ys) + pad,
+               grid: { color: c.grid }, border: { display: false },
+               ticks: { callback: (v) => money(v) } },
+        },
+        plugins: {
+          legend: { display: false },
+          annotation: { annotations },
+          tooltip: {
+            backgroundColor: c.surface, titleColor: c.ink2, bodyColor: c.ink2,
+            borderColor: c.grid, borderWidth: 1, padding: 10, displayColors: false,
+            callbacks: {
+              label: (ctx) => {
+                const p = ctx.raw;
+                return [
+                  money(p.y),
+                  `Google: ${p.level || 'sin dato'}`,
+                  `${p.airline || '?'} · ${p.stops ?? '?'} escala(s)`,
+                ];
+              },
+            },
+          },
+        },
+      },
+      plugins: [{  // vertical crosshair on hover
+        id: 'crosshair',
+        afterDatasetsDraw(ch) {
+          const a = ch.tooltip?.getActiveElements?.() || [];
+          if (!a.length) return;
+          const { ctx, chartArea } = ch; const x = a[0].element.x;
+          ctx.save(); ctx.strokeStyle = c.axis; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom); ctx.stroke(); ctx.restore();
+        },
+      }],
+    });
+  }
+
+  build();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', build);
+  matchMedia('(min-width: 640px)').addEventListener('change', build);
+  new MutationObserver(build).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+</script>
+{% endif %}
+</body>
+</html>

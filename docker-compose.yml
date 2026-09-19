@@ -1,0 +1,31 @@
+services:
+  fare-watch:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - fare-watch-data:/app/data
+    environment:
+      # Required
+      ORIGIN: ${ORIGIN:?ORIGIN is required}
+      DESTINATION: ${DESTINATION:?DESTINATION is required}
+      DEPART_DATE: ${DEPART_DATE:?DEPART_DATE is required}
+      RETURN_DATE: ${RETURN_DATE:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID is required}
+      # Optional
+      PASSENGERS: ${PASSENGERS:-1}
+      CABIN_CLASS: ${CABIN_CLASS:-economy}
+      CURRENCY: ${CURRENCY:-USD}
+      PRICE_FLOOR: ${PRICE_FLOOR:-}
+      PRICE_CEILING: ${PRICE_CEILING:-}
+      CHANGE_THRESHOLD_PCT: ${CHANGE_THRESHOLD_PCT:-5}
+      REMINDER_DATES: ${REMINDER_DATES:-}
+      DEADLINE_DATE: ${DEADLINE_DATE:-}
+      SCRAPE_TIMES: ${SCRAPE_TIMES:-09:00,21:00}
+      TZ: ${TZ:-UTC}
+      DASHBOARD_TOKEN: ${DASHBOARD_TOKEN:-}
+
+volumes:
+  fare-watch-data:
