@@ -86,6 +86,7 @@
       <div class="label">Precio actual</div>
       <div class="value">{{ latest.price | money(currency) if latest else "—" }}</div>
       <div class="sub">
+        {% if latest_per_pax %}{{ latest_per_pax | money(currency) }} por pasajero<br>{% endif %}
         {% if latest %}
           <span class="level"><i class="dot {{ latest.current_price or 'none' }}"></i>
             Google: {{ latest.current_price or "sin dato" }}</span>
@@ -190,7 +191,11 @@
         borderColor: isDeadline ? c.deadline : c.muted, borderWidth: isDeadline ? 2 : 1.5,
         borderDash: isDeadline ? [] : [2, 3],
         // Narrow screens: only the deadline keeps its label, reminders would collide.
-        label: { display: isDeadline || innerWidth >= 640, content: `${m.label} ${m.date}`, position: 'end', rotation: 0,
+        label: { display: isDeadline || innerWidth >= 640,
+                 // Reminders show just the date; the legend says what the dotted lines are.
+                 content: isDeadline ? `${m.label} ${m.date}` : m.date,
+                 // Deadline label on top, reminders at the bottom so they never collide.
+                 position: isDeadline ? 'end' : 'start', rotation: 0, yAdjust: isDeadline ? 0 : -2,
                  backgroundColor: c.surface, color: isDeadline ? c.deadline : c.ink2,
                  font: { size: 11 }, padding: 3 },
       };

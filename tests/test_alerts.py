@@ -43,6 +43,27 @@ def test_floor_and_ceiling(env):
     assert alerts.evaluate_price(s, snap("100"), None) == []
 
 
+def test_thresholds_are_per_passenger(env):
+    s = load_settings({**env, "PASSENGERS": "3", "PRICE_FLOOR": "850", "PRICE_CEILING": "1000"})
+    assert s.price_floor_total == Decimal("2550") and s.price_ceiling_total == Decimal("3000")
+    assert alerts.evaluate_price(s, snap("2700"), None) == []          # inside the band
+    assert kinds(alerts.evaluate_price(s, snap("2549"), None)) == ["floor"]
+    assert kinds(alerts.evaluate_price(s, snap("3001"), None)) == ["ceiling"]
+
+
+def test_messages_show_total_and_per_passenger(env):
+    s = load_settings({**env, "PASSENGERS": "3", "PRICE_FLOOR": "850"})
+    msg = alerts.evaluate_price(s, snap("2400"), None)[0].message
+    assert "Ahora: 2,400 USD (800 USD/pax)" in msg
+    assert "Piso: 2,550 USD (850 USD x 3 pax)" in msg
+
+
+def test_single_passenger_messages_stay_plain(env):
+    s = load_settings({**env, "PRICE_FLOOR": "850"})
+    msg = alerts.evaluate_price(s, snap("800"), None)[0].message
+    assert "Ahora: 800 USD\nPiso: 850 USD" in msg and "/pax" not in msg
+
+
 def test_change_threshold_is_strict(env):
     s = load_settings(env)  # 5%
     assert alerts.evaluate_price(s, snap("105", 2), snap("100")) == []

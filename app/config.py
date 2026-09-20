@@ -56,6 +56,16 @@ class Settings:
     def is_round_trip(self) -> bool:
         return self.return_date is not None
 
+    # PRICE_FLOOR / PRICE_CEILING are given per passenger; Google quotes the
+    # total for the whole party, so the thresholds are scaled to match it.
+    @property
+    def price_floor_total(self) -> Decimal | None:
+        return None if self.price_floor is None else self.price_floor * self.passengers
+
+    @property
+    def price_ceiling_total(self) -> Decimal | None:
+        return None if self.price_ceiling is None else self.price_ceiling * self.passengers
+
     @property
     def db_path(self) -> str:
         return os.path.join(self.data_dir, "fare-watch.db")

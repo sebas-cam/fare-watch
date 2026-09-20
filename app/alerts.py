@@ -37,6 +37,26 @@ def fmt_money(amount: Decimal, currency: str) -> str:
     return f"{q:,} {currency}"
 
 
+def per_passenger(amount: Decimal, passengers: int) -> Decimal:
+    return (amount / passengers).quantize(Decimal("0.01"))
+
+
+def threshold_label(value_per_pax: Decimal, s: Settings) -> str:
+    """Renders as `2,550 USD (850 USD x 3 pax)`, or just the total for one passenger."""
+    total = fmt_money(value_per_pax * s.passengers, s.currency)
+    if s.passengers == 1:
+        return total
+    return f"{total} ({fmt_money(value_per_pax, s.currency)} x {s.passengers} pax)"
+
+
+def price_label(amount: Decimal, s: Settings, currency: str) -> str:
+    """Total, plus the per-passenger figure when the party is bigger than one."""
+    total = fmt_money(amount, currency)
+    if s.passengers == 1:
+        return total
+    return f"{total} ({fmt_money(per_passenger(amount, s.passengers), currency)}/pax)"
+
+
 def route_label(s: Settings) -> str:
     arrow = "⇄" if s.is_round_trip else "→"
     dates = s.depart_date.isoformat() + (f" / {s.return_date.isoformat()}" if s.return_date else "")
@@ -45,22 +65,23 @@ def route_label(s: Settings) -> str:
 
 def evaluate_price(s: Settings, current: Snapshot, previous: Snapshot | None) -> list[Alert]:
     alerts: list[Alert] = []
-    price = fmt_money(current.price, current.currency)
+    price = price_label(current.price, s, current.currency)
     level = f" · Google: {current.current_price}" if current.current_price else ""
     detail = f"{current.airline or '?'} · {current.stops} escala(s){level}"
+    floor, ceiling = s.price_floor_total, s.price_ceiling_total
 
-    if s.price_floor is not None and current.price < s.price_floor:
+    if floor is not None and current.price < floor:
         alerts.append(Alert(
             "floor", str(current.price),
             f"🟢 Precio bajo el mínimo\n{route_label(s)}\n"
-            f"Ahora: {price} (piso {fmt_money(s.price_floor, s.currency)})\n{detail}",
+            f"Ahora: {price}\nPiso: {threshold_label(s.price_floor, s)}\n{detail}",
         ))
 
-    if s.price_ceiling is not None and current.price > s.price_ceiling:
+    if ceiling is not None and current.price > ceiling:
         alerts.append(Alert(
             "ceiling", str(current.price),
             f"🔴 Precio sobre el máximo\n{route_label(s)}\n"
-            f"Ahora: {price} (techo {fmt_money(s.price_ceiling, s.currency)})\n{detail}",
+            f"Ahora: {price}\nTecho: {threshold_label(s.price_ceiling, s)}\n{detail}",
         ))
 
     if previous is not None and previous.price > 0:
@@ -80,7 +101,7 @@ def evaluate_price(s: Settings, current: Snapshot, previous: Snapshot | None) ->
 def evaluate_calendar(s: Settings, today: date, latest: Snapshot | None) -> list[Alert]:
     alerts: list[Alert] = []
     now_line = (
-        f"Precio actual: {fmt_money(latest.price, latest.currency)}"
+        f"Precio actual: {price_label(latest.price, s, latest.currency)}"
         if latest else "Todavía no hay precios registrados."
     )
 

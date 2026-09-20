@@ -102,8 +102,8 @@ CRITICAL fare_watch: Invalid configuration:
 | `PASSENGERS` | `1` | Adults, 1–9 |
 | `CABIN_CLASS` | `economy` | `economy`, `premium-economy`, `business`, `first` |
 | `CURRENCY` | `USD` | ISO 4217 |
-| `PRICE_FLOOR` | *(empty)* | Alert when the price drops **below** this. Empty disables it |
-| `PRICE_CEILING` | *(empty)* | Alert when the price rises **above** this. Empty disables it |
+| `PRICE_FLOOR` | *(empty)* | **Per passenger.** Alert when the price drops **below** this. Empty disables it |
+| `PRICE_CEILING` | *(empty)* | **Per passenger.** Alert when the price rises **above** this. Empty disables it |
 | `CHANGE_THRESHOLD_PCT` | `5` | Alert when the price moves **more than** this % vs. the previous snapshot |
 | `REMINDER_DATES` | *(empty)* | Comma-separated dates, e.g. `2099-01-01,2099-01-08` |
 | `DEADLINE_DATE` | *(empty)* | Final "buy now" message on that date. Empty disables it |
@@ -150,12 +150,18 @@ traffic, nothing to expose.
 
 | Trigger | Repeats? |
 |---|---|
-| Price < `PRICE_FLOOR` | Not while the price stays the same; again if it changes while still below |
-| Price > `PRICE_CEILING` | Same |
+| Price < `PRICE_FLOOR` × passengers | Not while the price stays the same; again if it changes while still below |
+| Price > `PRICE_CEILING` × passengers | Same |
 | \|change\| > `CHANGE_THRESHOLD_PCT` vs. the previous snapshot | Once per snapshot |
 | Today is in `REMINDER_DATES` | Once per date |
 | Today is `DEADLINE_DATE` | Once |
 | Two consecutive failed or empty scrapes | Once per outage, plus a recovery message afterwards |
+
+**Thresholds are per passenger.** Google quotes the total for the whole party, so
+with `PASSENGERS=3` and `PRICE_FLOOR=850` the alert fires below **2,550**. Alert
+messages spell out both figures — `Ahora: 2,400 USD (800 USD/pax)` above
+`Piso: 2,550 USD (850 USD x 3 pax)` — and the dashboard's reference lines are drawn at the totals so
+they line up with the plotted price.
 
 Sent alerts are recorded in an `alerts_sent` table, which is what makes
 de-duplication survive restarts. If Telegram is unreachable the alert is *not*
@@ -202,6 +208,11 @@ quietly: Google changes its fingerprinting and results come back empty rather th
 erroring. Every run is recorded in a `scrape_runs` table, empty and malformed results
 count as failures, two in a row notify you, and the raw response is written to
 `data/raw_responses/` (last 10 kept) so the breakage can actually be diagnosed.
+
+**Per-passenger thresholds.** Google returns the total for the party, but people
+think in per-person prices. `PRICE_FLOOR` and `PRICE_CEILING` are therefore
+configured per passenger and scaled by `PASSENGERS` at comparison time, so changing
+the party size doesn't silently invalidate the thresholds.
 
 **Money as `Decimal`, stored as text.** Prices never touch a float, and SQLite holds
 them as `TEXT` to avoid the rounding drift that would otherwise show up in

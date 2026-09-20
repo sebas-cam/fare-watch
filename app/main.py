@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from .alerts import fmt_money, route_label
+from .alerts import fmt_money, per_passenger, route_label
 from .config import ConfigError, Settings, load_settings
 from .db import Database
 from .jobs import build_scheduler
@@ -122,6 +122,9 @@ def dashboard(request: Request):
             "passengers": settings.passengers,
             "tz": str(tz),
             "latest": latest,
+            "latest_per_pax": (
+                per_passenger(latest.price, settings.passengers) if latest and settings.passengers > 1 else None
+            ),
             "min_price": min(prices) if prices else None,
             "max_price": max(prices) if prices else None,
             "days_left": (settings.deadline_date - today).days if settings.deadline_date else None,
@@ -129,8 +132,9 @@ def dashboard(request: Request):
             "snapshots": [s for s in reversed(snaps)],
             "chart": {
                 "points": points,
-                "floor": float(settings.price_floor) if settings.price_floor is not None else None,
-                "ceiling": float(settings.price_ceiling) if settings.price_ceiling is not None else None,
+                # Thresholds are configured per passenger; the chart plots party totals.
+                "floor": float(settings.price_floor_total) if settings.price_floor is not None else None,
+                "ceiling": float(settings.price_ceiling_total) if settings.price_ceiling is not None else None,
                 "markers": markers,
                 "currency": settings.currency,
             },
