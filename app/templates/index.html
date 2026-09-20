@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -78,33 +78,33 @@
 <main>
   <header>
     <h1>{{ route }}</h1>
-    <p>{{ passengers }} pasajero(s) · {{ cabin }} · {{ currency }} · horario {{ tz }}</p>
+    <p>{{ passengers }} passenger(s) · {{ cabin }} · {{ currency }} · times in {{ tz }}</p>
   </header>
 
   <section class="tiles">
     <div class="tile">
-      <div class="label">Precio actual</div>
+      <div class="label">Current price</div>
       <div class="value">{{ latest.price | money(currency) if latest else "—" }}</div>
       <div class="sub">
-        {% if latest_per_pax %}{{ latest_per_pax | money(currency) }} por pasajero<br>{% endif %}
+        {% if latest_per_pax %}{{ latest_per_pax | money(currency) }} per passenger<br>{% endif %}
         {% if latest %}
           <span class="level"><i class="dot {{ latest.current_price or 'none' }}"></i>
-            Google: {{ latest.current_price or "sin dato" }}</span>
-        {% else %}Aún sin datos{% endif %}
+            Google: {{ latest.current_price or "no data" }}</span>
+        {% else %}No data yet{% endif %}
       </div>
     </div>
     <div class="tile">
-      <div class="label">Mínimo histórico</div>
+      <div class="label">All-time low</div>
       <div class="value">{{ min_price | money(currency) if min_price is not none else "—" }}</div>
     </div>
     <div class="tile">
-      <div class="label">Máximo histórico</div>
+      <div class="label">All-time high</div>
       <div class="value">{{ max_price | money(currency) if max_price is not none else "—" }}</div>
     </div>
     <div class="tile">
-      <div class="label">Días al deadline</div>
+      <div class="label">Days to deadline</div>
       <div class="value">{{ days_left if days_left is not none else "—" }}</div>
-      <div class="sub">{{ deadline.isoformat() if deadline else "Sin deadline configurado" }}</div>
+      <div class="sub">{{ deadline.isoformat() if deadline else "No deadline set" }}</div>
     </div>
   </section>
 
@@ -113,22 +113,22 @@
       <span><i class="dot low"></i>Google: low</span>
       <span><i class="dot typical"></i>typical</span>
       <span><i class="dot high"></i>high</span>
-      <span><i class="dot none"></i>sin dato</span>
-      <span><i class="swatch-line"></i>piso / techo</span>
-      <span><i class="swatch-marker"></i>recordatorio / deadline</span>
+      <span><i class="dot none"></i>no data</span>
+      <span><i class="swatch-line"></i>floor / ceiling</span>
+      <span><i class="swatch-marker"></i>reminder / deadline</span>
     </div>
     {% if snapshots %}
-      <div class="chart-wrap"><canvas id="chart" role="img" aria-label="Evolución del precio en el tiempo"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart" role="img" aria-label="Price history over time"></canvas></div>
     {% else %}
-      <div class="empty">Todavía no hay snapshots. El primero llegará en el próximo horario de SCRAPE_TIMES.</div>
+      <div class="empty">No snapshots yet. The first one lands at the next SCRAPE_TIMES slot.</div>
     {% endif %}
 
     {% if snapshots %}
     <details>
-      <summary>Ver tabla ({{ snapshots | length }} snapshots)</summary>
+      <summary>Show table ({{ snapshots | length }} snapshots)</summary>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Fecha ({{ tz }})</th><th>Precio</th><th>Google</th><th>Aerolínea</th><th>Escalas</th></tr></thead>
+          <thead><tr><th>Date ({{ tz }})</th><th>Price</th><th>Google</th><th>Airline</th><th>Stops</th></tr></thead>
           <tbody>
           {% for s in snapshots %}
             <tr>
@@ -145,7 +145,7 @@
     </details>
     {% endif %}
   </section>
-  <footer>fare-watch · datos de Google Flights vía fast-flights</footer>
+  <footer>fare-watch · data from Google Flights via fast-flights</footer>
 </main>
 
 {% if snapshots %}
@@ -182,8 +182,8 @@
                  backgroundColor: c.surface, color: c.ink2, font: { size: 11 }, padding: 3 },
       };
     };
-    refLine('floor', DATA.floor, 'Piso');
-    refLine('ceiling', DATA.ceiling, 'Techo');
+    refLine('floor', DATA.floor, 'Floor');
+    refLine('ceiling', DATA.ceiling, 'Ceiling');
     DATA.markers.forEach((m, i) => {
       const isDeadline = m.kind === 'deadline';
       annotations[`m${i}`] = {
@@ -215,7 +215,7 @@
     chart = new Chart(document.getElementById('chart'), {
       type: 'line',
       data: { datasets: [{
-        label: 'Precio', data: DATA.points, parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+        label: 'Price', data: DATA.points, parsing: { xAxisKey: 'x', yAxisKey: 'y' },
         borderColor: c.line, borderWidth: 2, tension: 0, stepped: false,
         pointRadius: 5, pointHoverRadius: 7, pointHitRadius: 12, pointBorderWidth: 2,
         pointBackgroundColor: pointColor, pointBorderColor: pointBorder,
@@ -243,8 +243,8 @@
                 const p = ctx.raw;
                 return [
                   money(p.y),
-                  `Google: ${p.level || 'sin dato'}`,
-                  `${p.airline || '?'} · ${p.stops ?? '?'} escala(s)`,
+                  `Google: ${p.level || 'no data'}`,
+                  `${p.airline || '?'} · ${p.stops ?? '?'} stop(s)`,
                 ];
               },
             },

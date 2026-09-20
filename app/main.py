@@ -107,7 +107,7 @@ def dashboard(request: Request):
         }
         for s in snaps
     ]
-    markers = [{"date": d.isoformat(), "label": "Recordatorio", "kind": "reminder"}
+    markers = [{"date": d.isoformat(), "label": "Reminder", "kind": "reminder"}
                for d in settings.reminder_dates]
     if settings.deadline_date:
         markers.append({"date": settings.deadline_date.isoformat(), "label": "Deadline", "kind": "deadline"})
