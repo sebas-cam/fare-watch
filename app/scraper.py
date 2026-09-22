@@ -17,9 +17,10 @@ from datetime import datetime
 from decimal import Decimal
 
 from fast_flights import FlightQuery, Passengers, create_query, get_flights
-from fast_flights.fetcher import fetch_flights_html
+from fast_flights.fetcher import URL
 from fast_flights.integrations.base import FetchIntegration
 from fast_flights.querying import Query
+from primp import Client
 
 from .config import Settings
 from .db import Snapshot, utcnow
@@ -39,14 +40,41 @@ class ScrapeError(Exception):
     """The scrape failed or returned unusable (empty) data."""
 
 
+# Pre-accepted consent cookies. From EU IPs Google otherwise answers with the
+# consent wall (consent.google.com, "ConsentUi") instead of the flights page.
+_CONSENT_COOKIES = {
+    "CONSENT": "YES+cb",
+    "SOCS": "CAESHAgBEhJnd3NfMjAyMzA4MTAtMF9SQzIaAmVuIAEaBgiAo_CmBg",
+}
+
+
+class ConsentWallError(ScrapeError):
+    """Google served its cookie-consent page instead of results."""
+
+
+def is_consent_wall(html: str) -> bool:
+    return "ConsentUi" in html[:5000] or "consent.google.com" in html[:5000]
+
+
 class _CapturingFetcher(FetchIntegration):
-    """Default fast-flights fetch, but keeps the HTML for inspection."""
+    """fast-flights' default fetch plus consent cookies; keeps the HTML."""
 
     def __init__(self) -> None:
         self.html: str | None = None
 
     def fetch_html(self, q: Query | str, /) -> str:
-        self.html = fetch_flights_html(q)
+        client = Client(
+            impersonate="chrome_145",
+            impersonate_os="macos",
+            referer=True,
+            cookie_store=True,
+        )
+        params = q.params() if isinstance(q, Query) else {"q": q}
+        params.setdefault("gl", "US")
+        res = client.get(URL, params=params, cookies=_CONSENT_COOKIES)
+        self.html = res.text
+        if is_consent_wall(self.html):
+            raise ConsentWallError("Google returned the cookie-consent page")
         return self.html
 
 

@@ -9,3 +9,10 @@ def test_price_level_from_text():
 
 def test_price_level_missing():
     assert extract_price_level("<html></html>") is None
+
+
+def test_consent_wall_detected():
+    from app.scraper import is_consent_wall
+
+    assert is_consent_wall("window['ppConfig'] = {productName: 'ConsentUi', deleteIsEnforced: true}")
+    assert not is_consent_wall("<html><div>Prices are currently low</div></html>")

@@ -1,6 +1,7 @@
 fast-flights==3.1.0
 # fast-flights 3.1.0 imports typing_extensions but does not declare it
 typing_extensions==4.16.0
+primp==2.0.1  # used directly by app/scraper.py
 fastapi==0.141.1
 uvicorn==0.53.0
 jinja2==3.1.6
